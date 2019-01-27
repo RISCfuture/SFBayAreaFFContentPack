@@ -9,7 +9,8 @@ To install this content pack into your ForeFlight application, click this link
 on your device: https://foreflight.com/content?downloadURL=https://github.com/RISCfuture/SFBayAreaFFContentPack/archive/SFBayAreaFFContentPack-v0.zip
 
 Then, in the Downloads view, ensure that the content pack titled
-"SFBayAreaFFContentPack" is downloaded.
+"SFBayAreaFFContentPack" is downloaded. You may need to force-quit and restart
+ForeFlight to get the new content to appear.
 
 ## Contributing
 
