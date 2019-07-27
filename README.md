@@ -6,7 +6,7 @@ aviation pilots.
 ## Installation
 
 To install this content pack into your ForeFlight application, click this link
-on your device: https://foreflight.com/content?downloadURL=https://github.com/RISCfuture/SFBayAreaFFContentPack/archive/SFBayAreaFFContentPack-v3.zip
+on your device: https://foreflight.com/content?downloadURL=https://github.com/RISCfuture/SFBayAreaFFContentPack/archive/SFBayAreaFFContentPack-v4.zip
 
 Then, in the Downloads view, ensure that the content pack titled
 "SFBayAreaFFContentPack" is downloaded. You may need to force-quit and restart
