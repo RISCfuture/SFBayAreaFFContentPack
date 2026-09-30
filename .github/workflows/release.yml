@@ -1,0 +1,111 @@
+name: Release content pack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - byop/**
+      - navdata/**
+      - build-pack.sh
+      - .github/workflows/release.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # create / replace / prune releases
+
+# Two pushes on the same day publish to the same tag; run one at a time,
+# never cancelling a publish midway.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # tags and history for the release notes
+
+      - name: Build content pack
+        env:
+          BUILT_ASSET: San Francisco Bay Area Content Pack.zip
+          ASSET: San.Francisco.Bay.Area.Content.Pack.zip
+        run: |
+          set -euo pipefail
+          ./build-pack.sh "$BUILT_ASSET"
+          # GitHub rewrites spaces in release-asset filenames to dots;
+          # rename up front so the name announced in the release notes
+          # matches the name GitHub actually serves.
+          mv -- "$BUILT_ASSET" "$ASSET"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ASSET: San.Francisco.Bay.Area.Content.Pack.zip
+        run: |
+          set -euo pipefail
+
+          TAG=$(date -u +%Y-%m-%d)
+
+          # Notes cover every pack change since the previous release's tag.
+          previous_tag=$(git tag --list --sort=-creatordate | grep -vxF -- "$TAG" | head -n 1 || true)
+          range=${previous_tag:+${previous_tag}..}HEAD
+
+          # /releases/latest/download/ always redirects to the newest
+          # release, so a bookmarked install link keeps pulling updates.
+          LATEST_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
+          IMPORT_URL="https://foreflight.com/content?downloadURL=$(printf %s "$LATEST_URL" | jq -sRr @uri)"
+
+          {
+            echo "## Changes"
+            echo
+            git log --reverse --format='### %s%n%n%b' "$range" -- byop navdata \
+              | grep -v '^Co-Authored-By:'
+            echo "## Import into ForeFlight"
+            echo
+            echo "On an iOS device that has ForeFlight installed, open this link:"
+            echo
+            echo "[Install in ForeFlight](${IMPORT_URL})"
+            echo
+            echo "The link uses GitHub's \`/releases/latest/\` redirect, so the same URL keeps pulling the newest pack."
+            echo
+            echo "## Direct download"
+            echo
+            echo "${LATEST_URL}"
+          } > release-notes.md
+
+          # The build is ready; only now replace today's release (if any),
+          # minimizing the window where the tag has no release.
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Deleting existing release $TAG to replace it"
+            gh release delete "$TAG" --repo "$REPO" --cleanup-tag --yes
+          fi
+
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --target "$GITHUB_SHA" \
+            --title "San Francisco Bay Area Content Pack - ${TAG}" \
+            --notes-file release-notes.md \
+            --latest \
+            "$ASSET"
+
+      - name: Prune old releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Keep the newest six date-tagged releases. ISO-8601 tag names sort
+          # lexically the same as chronologically. Legacy vN releases are
+          # left alone.
+          gh release list --repo "$REPO" --limit 200 --json tagName \
+            --jq '[.[].tagName | select(test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))] | sort | reverse | .[6:] | .[]' \
+            | while read -r old_tag; do
+                [ -z "$old_tag" ] && continue
+                echo "Pruning old release $old_tag"
+                gh release delete "$old_tag" --repo "$REPO" --cleanup-tag --yes
+              done
