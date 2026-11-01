@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0   # tags and history for the release notes
 
@@ -64,7 +64,7 @@ jobs:
             echo "## Changes"
             echo
             git log --reverse --format='### %s%n%n%b' "$range" -- byop navdata \
-              | grep -v '^Co-Authored-By:'
+              | sed '/^Co-Authored-By:/d'
             echo "## Import into ForeFlight"
             echo
             echo "On an iOS device that has ForeFlight installed, open this link:"
